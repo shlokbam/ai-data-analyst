@@ -1,218 +1,287 @@
 # ============================================================
 #  app.py  —  The heart of your Flask application
-#  Every request your app handles goes through this file.
+#  Updated in Phase 3: /ask route wired to Gemini AI
 # ============================================================
-
-# --- IMPORTS ------------------------------------------------
-# Think of imports as "loading tools into your toolbox"
-# before you start working.
 
 import os
-# os = Operating System module (built into Python, no install needed)
-# We use it for:
-#   - os.path.join()  → safely build file paths across Windows/Linux
-#   - os.makedirs()   → create folders if they don't exist
-#   - os.getenv()     → read secret values from your .env file
-
-from flask import (
-    Flask,            # The main class — creates your web app
-    render_template,  # Loads an HTML file from the templates/ folder
-    request,          # Represents the incoming HTTP request (files, form data, JSON)
-    jsonify,          # Converts a Python dict → JSON response for the browser
-    session           # A per-user "notepad" stored in an encrypted cookie
-)
-# Why import from flask specifically?
-# Flask is a package (a folder of Python files). These are individual
-# tools inside that package. We only import what we need.
-
+from flask import Flask, render_template, request, jsonify, session
 from werkzeug.utils import secure_filename
-# werkzeug is installed automatically with Flask (it's Flask's foundation).
-# secure_filename() sanitizes uploaded filenames.
-# Without it, a malicious user could upload a file named:
-#   "../../etc/passwd"  →  which could overwrite system files!
-# secure_filename("../../etc/passwd") returns "etc_passwd" — safe.
-
 from dotenv import load_dotenv
-# python-dotenv reads your .env file and loads its contents
-# into os.environ so os.getenv() can access them.
-# This keeps secrets OUT of your code.
+import pandas as pd
+from analysis import analyze_csv, get_chart_columns
+from gemini_helper import get_ai_insight, suggest_chart_type, suggest_chart_columns
+from flask import send_file
+# send_file() streams a file-like object (our BytesIO buffer) as an
+# HTTP response with the correct Content-Type header.
+# Without it, Flask has no built-in way to serve raw binary data.
 
-# --- LOAD ENVIRONMENT VARIABLES ----------------------------
+from chart import generate_chart
+# Our Phase 4 module — all Matplotlib drawing logic lives here.
+# generate_chart(df, chart_type, x_col, y_col) → BytesIO PNG buffer
+
 load_dotenv()
-# This must be called BEFORE any os.getenv() calls.
-# It reads your .env file line by line:
-#   GEMINI_API_KEY=abc123  →  os.environ["GEMINI_API_KEY"] = "abc123"
 
-
-# --- CREATE THE FLASK APP ----------------------------------
 app = Flask(__name__)
-# Flask(__name__) creates your application.
-# __name__ is a special Python variable that holds the name of
-# the current module. When you run app.py directly, __name__ = "__main__".
-# Flask uses it to find your templates/ and static/ folders
-# (it looks relative to where this file lives).
-
-
-# --- CONFIGURATION -----------------------------------------
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-# secret_key is used by Flask to SIGN (encrypt) the session cookie.
-# If someone tampers with their cookie, Flask detects it and rejects it.
-# os.getenv('SECRET_KEY', 'fallback') means:
-#   → Try to read SECRET_KEY from .env
-#   → If it's not there, use 'dev-secret-key-change-in-production' as fallback
-# In production (Render), you MUST set SECRET_KEY as an environment variable.
 
-UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', 'uploads')
-# Where uploaded files are stored on the server.
-# Locally: the uploads/ folder in your project.
-# On Render: we'll change this to /tmp/uploads (Phase 6).
-
+UPLOAD_FOLDER      = os.getenv('UPLOAD_FOLDER', 'uploads')
 ALLOWED_EXTENSIONS = {'csv'}
-# A Python set (like a list but no duplicates, faster lookups).
-# We only allow .csv files — this is our security gate.
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-# app.config is a dictionary Flask uses for settings.
-# Setting it here makes it accessible anywhere via:
-#   app.config['UPLOAD_FOLDER']  or  current_app.config['UPLOAD_FOLDER']
-
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
-# 5 MB upload limit.
-# 1 KB = 1024 bytes, 1 MB = 1024 KB, so 5 MB = 5 × 1024 × 1024 bytes.
-# If someone uploads a larger file, Flask automatically returns a 413 error.
+app.config['UPLOAD_FOLDER']      = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB
 
 
-# --- HELPER FUNCTION ---------------------------------------
 def allowed_file(filename):
-    """
-    Returns True if the filename ends with an allowed extension.
-
-    How it works:
-      "sales_data.csv".rsplit('.', 1)  →  ['sales_data', 'csv']
-      rsplit splits from the RIGHT, max 1 split
-      [1] gets the second part (the extension)
-      .lower() handles "DATA.CSV" → "csv"
-      'in ALLOWED_EXTENSIONS' checks if it's in our set {'csv'}
-    """
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-# The '.' in filename check is important —
-# a file named just "csv" (no dot) would crash rsplit without it.
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# ============================================================
-#  ROUTES
-#  A route connects a URL path to a Python function.
-#  When Flask receives a request for that URL, it calls the function.
-# ============================================================
-
+# ---- Route 1 -----------------------------------------------
 @app.route('/')
 def index():
-    """
-    Route: GET /
-    This runs when someone visits your homepage.
-
-    render_template('index.html') tells Flask:
-      → Look inside the templates/ folder
-      → Find index.html
-      → Read it, fill in any {{ variables }}, return it as HTML
-
-    We haven't built index.html yet (Phase 5), but the route is ready.
-    """
     return render_template('index.html')
 
 
+# ---- Route 2 -----------------------------------------------
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """
-    Route: POST /upload
-    This runs when the browser submits the file upload form.
-
-    Why methods=['POST']?
-    HTTP has several "verbs":
-      GET  = "give me a page"  (default when typing a URL)
-      POST = "here's data, process it"  (forms, file uploads)
-    By specifying ['POST'], visiting /upload in the browser (GET)
-    returns a 405 Method Not Allowed — only form submissions work.
-    """
-
-    # request.files is a dictionary of uploaded files.
-    # The key 'file' must match the name attribute of your HTML <input>.
-    # <input type="file" name="file">  ← this 'name' is the key
     if 'file' not in request.files:
-        # jsonify() converts the dict to a proper JSON HTTP response.
-        # The second argument (400) is the HTTP status code.
-        # 400 = "Bad Request" — the client sent something wrong.
         return jsonify({'error': 'No file part in request'}), 400
-
     file = request.files['file']
-    # file is a FileStorage object — it holds the uploaded file data
-    # and metadata (filename, content type, etc.)
-
     if file.filename == '':
-        # This happens when the form is submitted with no file selected.
         return jsonify({'error': 'No file selected'}), 400
-
     if not allowed_file(file.filename):
         return jsonify({'error': 'Only .csv files are allowed'}), 400
 
-    if file:
-        # Sanitize the filename to prevent directory traversal attacks
-        filename = secure_filename(file.filename)
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+    session['filepath'] = filepath
+    session['filename'] = filename
+    session.pop('history', None)  # clear old conversation on new upload
 
-        # os.path.join() safely combines folder + filename.
-        # On Windows: uploads\sales.csv
-        # On Linux:   uploads/sales.csv
-        # Never use string concatenation for file paths!
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    df = pd.read_csv(filepath)
+    rows, cols = df.shape
+    columns_info = [{'name': col, 'type': str(df[col].dtype)} for col in df.columns]
 
-        # Save the file from memory to disk at filepath
-        file.save(filepath)
-
-        # Store the path in the session so the /ask route can find it later.
-        # session is like a dictionary, but it's saved in the user's browser
-        # as an encrypted cookie. It persists across multiple requests
-        # from the same user.
-        session['filepath'] = filepath
-        session['filename'] = filename
-
-        # Return a success response with basic file info.
-        # The frontend JavaScript will receive this JSON and update the UI.
-        return jsonify({
-            'message': 'File uploaded successfully!',
-            'filename': filename
-        })
+    return jsonify({'message': 'File uploaded successfully!',
+                    'filename': filename, 'rows': rows,
+                    'cols': cols, 'columns': columns_info})
 
 
+# ---- Route 3 -----------------------------------------------
+@app.route('/preview', methods=['GET'])
+def preview():
+    filepath = session.get('filepath')
+    if not filepath:
+        return jsonify({'error': 'No file uploaded yet.'}), 400
+    df   = pd.read_csv(filepath)
+    data = df.head(10).to_dict(orient='records')
+    return jsonify({'columns': list(df.columns), 'rows': data, 'total_rows': len(df)})
+
+
+# ---- Route 4 -----------------------------------------------
+@app.route('/summary', methods=['GET'])
+def summary():
+    filepath = session.get('filepath')
+    if not filepath:
+        return jsonify({'error': 'No file uploaded yet.'}), 400
+    full_summary, df = analyze_csv(filepath)
+    return jsonify({'summary': full_summary, 'chart_columns': get_chart_columns(df)})
+
+
+# ---- Route 5  NEW IN PHASE 3 --------------------------------
+@app.route('/ask', methods=['POST'])
+def ask():
+    """
+    POST /ask — the main route of the whole app.
+
+    Flow:
+      1.  Read + validate the question from the request body
+      2.  Get the CSV filepath from session
+      3.  Generate Pandas summary  (analyze_csv)
+      4.  Get AI insight text      (get_ai_insight)
+      5.  Get chart type           (suggest_chart_type)
+      6.  Get chart columns        (suggest_chart_columns)
+      7.  Save to conversation history
+      8.  Return all results as JSON
+    """
+
+    # Step 1 — parse and validate the incoming JSON body
+    body = request.get_json()
+    # The frontend sends:
+    #   fetch('/ask', {
+    #     method: 'POST',
+    #     headers: { 'Content-Type': 'application/json' },
+    #     body: JSON.stringify({ question: "..." })
+    #   })
+    # request.get_json() parses that body string into a Python dict.
+    # Returns None if the body is empty or Content-Type is wrong.
+
+    if not body:
+        return jsonify({'error': 'Request body is empty or not JSON.'}), 400
+
+    user_question = body.get('question', '').strip()
+    # .get() with a default '' prevents KeyError if 'question' is missing.
+    # .strip() removes accidental leading/trailing whitespace.
+
+    if not user_question:
+        return jsonify({'error': 'Please enter a question.'}), 400
+
+    if len(user_question) > 500:
+        return jsonify({'error': 'Question too long (max 500 characters).'}), 400
+
+    # Step 2 — get the CSV filepath the upload route saved in the session
+    filepath = session.get('filepath')
+    if not filepath:
+        return jsonify({'error': 'No CSV uploaded yet. Please upload a file first.'}), 400
+
+    if not os.path.exists(filepath):
+        # File may have been deleted (e.g. server restarted).
+        session.pop('filepath', None)  # remove stale session data
+        return jsonify({'error': 'Uploaded file not found. Please re-upload.'}), 400
+
+    # Step 3 — generate the full Pandas data summary
+    full_summary, df = analyze_csv(filepath)
+    # full_summary = multi-section text Gemini will read as context
+    # df           = raw DataFrame for chart column lookup
+
+    chart_cols = get_chart_columns(df)
+    # {'numeric': ['Sales', 'Units'], 'text': ['Region', 'Month'], 'all': [...]}
+
+    # Step 4 — load conversation history for follow-up support
+    history = session.get('history', [])
+    # If this is the first question, history is an empty list [].
+    # Gemini uses history to understand references like "the region
+    # you just mentioned" or "what about the other column?".
+
+    # Step 5 — call Gemini for the text insight
+    insight = get_ai_insight(full_summary, user_question, history)
+    # Network call to Google's API → typically 1-3 seconds.
+    # Returns a string: Gemini's full answer to the question.
+
+    # Step 6 — call Gemini for chart type
+    chart_type = suggest_chart_type(full_summary, user_question)
+    # Returns: 'bar', 'line', 'scatter', 'histogram', 'pie', or 'none'
+    # Separate call because we need a single clean word,
+    # not a sentence mixed into the main answer.
+
+    # Step 7 — call Gemini for chart column selection
+    chart_column_suggestion = {'x': None, 'y': None}
+    if chart_type != 'none':
+        chart_column_suggestion = suggest_chart_columns(
+            full_summary, user_question, chart_cols
+        )
+        # Only run this if we're actually drawing a chart.
+        # Skipping it when chart_type == 'none' saves an API call.
+
+    # Step 8 — persist this Q&A to the session history
+    history.append({
+        'q': user_question,
+        'a': insight[:500]
+        # Truncate to 500 chars — full answers can be huge.
+        # 500 chars is enough for Gemini to understand context.
+    })
+    session['history'] = history[-5:]
+    # Keep only the last 5 exchanges to prevent cookie bloat.
+    session.modified = True
+    # IMPORTANT: Flask doesn't detect mutations to mutable objects
+    # (lists/dicts) inside session automatically.
+    # Setting session.modified = True forces Flask to re-sign
+    # and re-send the updated cookie in this response.
+
+    # Step 9 — return everything to the frontend
+    return jsonify({
+        'insight'   : insight,
+        'chart_type': chart_type,
+        'chart_cols': chart_column_suggestion,
+        'question'  : user_question      # echo back so frontend can display it
+    })
+
+
+# ---- Route 6  NEW IN PHASE 4 --------------------------------
+@app.route('/chart', methods=['POST'])
+def chart():
+    """
+    POST /chart
+    Receives chart_type + column names from the frontend,
+    calls generate_chart(), and returns the PNG image directly
+    as an HTTP response with Content-Type: image/png.
+
+    Why POST and not GET?
+    We're sending data: chart_type, x_col, y_col.
+    GET requests have no body — this data can't go in a URL cleanly.
+
+    How the frontend displays this image:
+      1. fetch('/chart', { method: 'POST', body: JSON... })
+      2. response.blob()           ← reads the raw PNG bytes
+      3. URL.createObjectURL(blob) ← creates a temporary browser URL
+      4. img.src = that URL        ← displays it in an <img> tag
+    This is how you show server-generated binary images in a browser
+    without saving them as files or encoding them as base64.
+    """
+
+    # -- Parse incoming JSON body ---------------------------------
+    body = request.get_json()
+    if not body:
+        return jsonify({'error': 'Request body missing or not JSON'}), 400
+
+    chart_type = body.get('chart_type', 'bar')
+    x_col      = body.get('x_col')    # may be None — generate_chart handles it
+    y_col      = body.get('y_col')    # may be None — generate_chart handles it
+
+    # 'none' means Gemini decided no chart is needed for this question
+    if chart_type == 'none':
+        return jsonify({'message': 'No chart needed for this question.'}), 204
+        # 204 = "No Content" — success, but intentionally no response body
+
+    # -- Get the CSV from the session ----------------------------
+    filepath = session.get('filepath')
+    if not filepath:
+        return jsonify({'error': 'No CSV uploaded yet.'}), 400
+
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Uploaded file not found. Please re-upload.'}), 400
+
+    # -- Load the data and generate the chart --------------------
+    df = pd.read_csv(filepath)
+
+    buf = generate_chart(df, chart_type, x_col=x_col, y_col=y_col)
+    # generate_chart() returns a BytesIO buffer containing PNG bytes,
+    # or None if the data isn't suitable for charting.
+
+    if buf is None:
+        return jsonify({'error': 'Could not generate chart for this data.'}), 422
+        # 422 = "Unprocessable Entity" — valid request, but can't process the data
+
+    # -- Stream the PNG back as the HTTP response ----------------
+    return send_file(
+        buf,
+        mimetype='image/png'
+        # mimetype tells the browser "this is a PNG image, not HTML or JSON".
+        # Without this, the browser doesn't know how to interpret the bytes.
+    )
+    # send_file() reads from buf (BytesIO), writes all bytes into the
+    # HTTP response body, and sets the Content-Type header automatically.
+    # The browser receives it like any other image on the web.
+
+
+# ---- Route 7 -----------------------------------------------
+@app.route('/reset', methods=['POST'])
+def reset():
+    """
+    POST /reset — clears the session for a fresh start.
+    Called when the user clicks "Upload new file" in the UI.
+    """
+    session.clear()
+    return jsonify({'message': 'Session cleared. Ready for a new file.'})
+
+
+# ---- Route 7 -----------------------------------------------
 @app.route('/health')
 def health():
-    """
-    Route: GET /health
-    A simple health check endpoint.
-    Render and other platforms ping this to verify your app is running.
-    Returns 200 OK with a simple message.
-    """
     return jsonify({'status': 'ok', 'message': 'Server is running'})
 
 
 # ============================================================
-#  ENTRY POINT
-# ============================================================
 if __name__ == '__main__':
-    # if __name__ == '__main__' means:
-    # "Only run this block if this file is executed directly"
-    #   python app.py       → __name__ == '__main__'  → runs
-    #   gunicorn app:app    → __name__ == 'app'        → skips
-    # This prevents the dev server from starting when Render runs gunicorn.
-
-    # Create the uploads folder if it doesn't exist yet.
-    # exist_ok=True means "don't crash if the folder already exists"
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-    # Start Flask's built-in development server.
-    # debug=True enables:
-    #   1. Auto-reload when you save changes (no need to restart)
-    #   2. Detailed error pages in the browser
-    #   3. The interactive debugger
-    # NEVER use debug=True in production — it's a security risk.
     app.run(debug=True, port=5000)

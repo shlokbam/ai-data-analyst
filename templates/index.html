@@ -1,71 +1,375 @@
 <!DOCTYPE html>
-<!--
-  templates/index.html  —  Temporary placeholder for Phase 1
-  We'll replace this entirely in Phase 5 with the full UI.
-  For now it lets us test that Flask is running correctly.
--->
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Data Analyst</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataLens — AI Data Analyst</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
-    /* Minimal styles — just enough to confirm the server works */
+    :root {
+      --bg:          #0E0F11;
+      --surface:     #16181C;
+      --surface-2:   #1E2128;
+      --border:      #2A2D35;
+      --border-2:    #383C47;
+      --accent:      #4ECDC4;
+      --accent-dim:  #2A7A75;
+      --accent-glow: rgba(78,205,196,0.15);
+      --text-1:      #F0F2F5;
+      --text-2:      #8B8FA8;
+      --text-3:      #555870;
+      --danger:      #FF6B6B;
+      --warn:        #FFD93D;
+      --success:     #6BCB77;
+      --radius:      10px;
+      --radius-lg:   16px;
+      --mono:        'DM Mono', 'Courier New', monospace;
+      --serif:       'DM Serif Display', Georgia, serif;
+      --transition:  0.2s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: monospace;
-      max-width: 600px;
-      margin: 80px auto;
-      padding: 0 20px;
-      background: #0f0f0f;
-      color: #e0e0e0;
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      line-height: 1.65;
+      background-image: radial-gradient(circle, #2A2D35 1px, transparent 1px);
+      background-size: 28px 28px;
     }
-    h1 { color: #4A90E2; font-size: 1.4rem; }
-    .status { 
-      background: #1a1a1a; 
-      border: 1px solid #333; 
-      padding: 16px 20px; 
-      border-radius: 6px;
-      margin-top: 20px;
+
+    .page-wrapper {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
     }
-    .dot { 
-      display: inline-block; 
-      width: 8px; height: 8px; 
-      background: #1D9E75; 
-      border-radius: 50%; 
-      margin-right: 8px;
+
+    /* ---- HERO ---- */
+    .hero {
+      padding: 56px 0 40px;
+      text-align: center;
+      animation: fadeUp 0.6s ease both;
     }
-    code { 
-      background: #222; 
-      padding: 2px 6px; 
-      border-radius: 3px; 
-      color: #4A90E2; 
-      font-size: 0.9em;
+    .hero-badge {
+      display: inline-block;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      background: var(--accent-glow);
+      padding: 5px 14px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      font-weight: 500;
     }
-    ul { line-height: 2; color: #aaa; }
+    .hero h1 {
+      font-family: var(--serif);
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 400;
+      line-height: 1.2;
+      color: var(--text-1);
+      margin-bottom: 14px;
+    }
+    .hero h1 em { font-style: italic; color: var(--accent); }
+    .hero p { font-size: 14px; color: var(--text-2); max-width: 480px; margin: 0 auto; }
+
+    /* ---- PANELS ---- */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.5s ease both;
+    }
+    .panel.hidden { display: none; }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-badge {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      border: 1px solid var(--accent-dim);
+      color: var(--accent);
+      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .panel-title { font-family: var(--serif); font-size: 1.2rem; font-weight: 400; color: var(--text-1); }
+
+    /* ---- UPLOAD ZONE ---- */
+    .upload-zone {
+      border: 2px dashed var(--border-2);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0;
+      cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 36px; margin-bottom: 12px; display: block; }
+    .upload-zone p { font-size: 13px; color: var(--text-2); pointer-events: none; }
+    .upload-zone strong { color: var(--accent); }
+
+    /* ---- BUTTONS ---- */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: var(--radius);
+      font-family: var(--mono); font-size: 13px; font-weight: 500;
+      cursor: pointer; border: 1px solid transparent;
+      transition: all var(--transition); text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent); color: #0E0F11; border-color: var(--accent);
+    }
+    .btn-primary:hover {
+      background: #3DBDB5; transform: translateY(-1px);
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost {
+      background: transparent; color: var(--text-2); border-color: var(--border-2);
+    }
+    .btn-ghost:hover { color: var(--text-1); border-color: var(--text-2); background: var(--surface-2); }
+
+    /* ---- STATUS BAR ---- */
+    .status-bar {
+      padding: 10px 14px; border-radius: var(--radius);
+      font-size: 12.5px; margin-top: 14px;
+      display: none; align-items: center; gap: 10px;
+    }
+    .status-bar.show { display: flex; }
+    .status-bar.success { background: rgba(107,203,119,0.12); border: 1px solid rgba(107,203,119,0.3); color: var(--success); }
+    .status-bar.error   { background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.3); color: var(--danger); }
+    .status-bar.loading { background: rgba(78,205,196,0.08);  border: 1px solid var(--accent-dim);     color: var(--accent); }
+
+    /* ---- FILE INFO ---- */
+    .file-info { display: none; margin-top: 18px; padding: 14px 16px; background: var(--surface-2); border-radius: var(--radius); border: 1px solid var(--border); }
+    .file-info.show { display: block; }
+    .file-name { font-size: 13px; font-weight: 500; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .chip { font-size: 11px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border-2); color: var(--text-2); background: var(--surface); }
+    .chip.numeric { border-color: var(--accent-dim); color: var(--accent); }
+    .chip.text    { border-color: #3D3060; color: #A89CD0; }
+    .stats-row { display: flex; gap: 20px; font-size: 12px; color: var(--text-3); margin-top: 8px; }
+    .stats-row span b { color: var(--text-2); font-weight: 500; }
+
+    /* ---- TABLE ---- */
+    .preview-table-wrap {
+      overflow-x: auto; border-radius: var(--radius);
+      border: 1px solid var(--border); margin-top: 4px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      background: var(--surface-2); color: var(--text-2); font-weight: 500;
+      font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-2); }
+    tbody td {
+      padding: 9px 14px; color: var(--text-2); white-space: nowrap;
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ---- QUESTION INPUT ---- */
+    .question-wrap { position: relative; }
+    textarea#questionInput {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: var(--radius); color: var(--text-1); font-family: var(--mono);
+      font-size: 13.5px; line-height: 1.6; padding: 14px 16px 44px 16px;
+      resize: vertical; min-height: 100px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      outline: none;
+    }
+    textarea#questionInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+    textarea#questionInput::placeholder { color: var(--text-3); font-style: italic; }
+    .textarea-footer { position: absolute; bottom: 10px; right: 10px; display: flex; align-items: center; gap: 10px; }
+    .char-count { font-size: 11px; color: var(--text-3); }
+    .char-count.warn { color: var(--warn); }
+    .example-questions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .example-q {
+      font-size: 11.5px; padding: 5px 12px; border-radius: 20px;
+      border: 1px solid var(--border-2); color: var(--text-3); cursor: pointer;
+      transition: all var(--transition); background: none; font-family: var(--mono);
+    }
+    .example-q:hover { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-glow); }
+
+    /* ---- EXCHANGES (Q&A CARDS) ---- */
+    .exchange {
+      border: 1px solid var(--border); border-radius: var(--radius-lg);
+      overflow: hidden; margin-bottom: 16px;
+      animation: fadeUp 0.4s ease both;
+    }
+    .exchange-question {
+      background: var(--surface-2); padding: 12px 20px;
+      font-size: 12.5px; color: var(--text-2);
+      display: flex; align-items: flex-start; gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .q-label {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-3);
+      padding-top: 2px; flex-shrink: 0;
+    }
+    .exchange-answer { padding: 20px 24px; background: var(--surface); }
+    .insight-text { font-size: 13.5px; color: var(--text-1); line-height: 1.75; }
+    .insight-text strong { color: var(--accent); font-weight: 500; }
+    .insight-line { display: flex; gap: 8px; margin-bottom: 5px; }
+    .insight-line .bullet { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+    .follow-ups { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .follow-ups-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); margin-bottom: 8px; }
+    .follow-up-chip {
+      display: inline-block; font-size: 12px; padding: 5px 12px; border-radius: 20px;
+      border: 1px solid var(--accent-dim); color: var(--accent); background: var(--accent-glow);
+      cursor: pointer; margin: 3px 4px 3px 0; transition: all var(--transition); font-family: var(--mono);
+    }
+    .follow-up-chip:hover { background: rgba(78,205,196,0.25); transform: translateY(-1px); }
+
+    /* ---- CHART ---- */
+    .chart-wrap { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+    .chart-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); margin-bottom: 10px; }
+    .chart-img { width: 100%; border-radius: var(--radius); border: 1px solid var(--border); display: block; }
+
+    /* ---- SPINNER ---- */
+    .spinner-wrap { display: flex; align-items: center; gap: 12px; padding: 20px 24px; color: var(--text-2); font-size: 13px; }
+    .spinner {
+      width: 18px; height: 18px; border: 2px solid var(--border-2);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.75s linear infinite; flex-shrink: 0;
+    }
+
+    /* ---- TOOLBAR ---- */
+    .results-toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--border);
+      flex-wrap: wrap; gap: 10px;
+    }
+    .exchange-count { font-size: 11.5px; color: var(--text-3); }
+
+    /* ---- ANIMATIONS ---- */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- RESPONSIVE ---- */
+    @media (max-width: 600px) {
+      .panel { padding: 20px 18px; }
+      .hero { padding: 36px 0 28px; }
+      .hero h1 { font-size: 1.8rem; }
+      .stats-row { flex-direction: column; gap: 4px; }
+    }
   </style>
 </head>
+
 <body>
-  <h1>AI Data Analyst</h1>
+<div class="page-wrapper">
 
-  <div class="status">
-    <span class="dot"></span>
-    <strong>Phase 1 complete — Flask server is running!</strong>
-  </div>
+  <header class="hero">
+    <div class="hero-badge">AI-Powered · CSV Analysis</div>
+    <h1>Data<em>Lens</em></h1>
+    <p>Upload any CSV. Ask questions in plain English. Get AI insights and auto-rendered charts instantly.</p>
+  </header>
 
-  <p style="color:#888; margin-top:24px;">
-    This is a temporary placeholder page.<br>
-    The full UI will be built in <strong style="color:#e0e0e0">Phase 5</strong>.
-  </p>
+  <!-- PANEL 1: Upload -->
+  <section class="panel" id="panel-upload">
+    <div class="panel-header">
+      <div class="step-badge">1</div>
+      <h2 class="panel-title">Upload your CSV</h2>
+    </div>
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept=".csv" aria-label="Choose a CSV file" />
+      <span class="upload-icon">⬆</span>
+      <p><strong>Click to browse</strong> or drag &amp; drop a CSV file</p>
+      <p style="margin-top:6px; font-size:11px;">Max 5 MB · .csv only</p>
+    </div>
+    <div class="status-bar" id="uploadStatus"></div>
+    <div class="file-info" id="fileInfo">
+      <div class="file-name"><span>📄</span><span id="infoFilename"></span></div>
+      <div class="chip-row" id="infoColumns"></div>
+      <div class="stats-row">
+        <span>Rows: <b id="infoRows">—</b></span>
+        <span>Columns: <b id="infoCols">—</b></span>
+      </div>
+    </div>
+  </section>
 
-  <p style="color:#888;">Routes available right now:</p>
-  <ul>
-    <li><code>GET  /</code>  — this page</li>
-    <li><code>POST /upload</code>  — accepts CSV file uploads</li>
-    <li><code>GET  /health</code>  — server health check</li>
-  </ul>
+  <!-- PANEL 2: Preview table -->
+  <section class="panel hidden" id="panel-preview">
+    <div class="panel-header">
+      <div class="step-badge">2</div>
+      <h2 class="panel-title">Data preview</h2>
+      <button class="btn btn-ghost" onclick="resetApp()" style="margin-left:auto;font-size:12px;padding:6px 14px;">↺ New file</button>
+    </div>
+    <div class="preview-table-wrap">
+      <table>
+        <thead id="previewHead"></thead>
+        <tbody id="previewBody"></tbody>
+      </table>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin-top:10px;" id="previewMeta"></p>
+  </section>
 
-  <p style="color:#555; font-size:0.85em; margin-top:32px;">
-    Test the upload route with: curl -X POST -F "file=@yourfile.csv" http://127.0.0.1:5000/upload
-  </p>
+  <!-- PANEL 3: Question input -->
+  <section class="panel hidden" id="panel-question">
+    <div class="panel-header">
+      <div class="step-badge">3</div>
+      <h2 class="panel-title">Ask about your data</h2>
+    </div>
+    <div class="question-wrap">
+      <textarea id="questionInput"
+        placeholder="e.g. Which region has the highest total sales? What trends do you see over time?"
+        maxlength="500" rows="3"></textarea>
+      <div class="textarea-footer">
+        <span class="char-count" id="charCount">0 / 500</span>
+        <button class="btn btn-primary" id="askBtn" onclick="askQuestion()">Analyse ↗</button>
+      </div>
+    </div>
+    <div class="example-questions" id="exampleQuestions">
+      <span style="font-size:11px;color:var(--text-3);line-height:2;">Try: </span>
+    </div>
+  </section>
+
+  <!-- PANEL 4: Results -->
+  <section class="panel hidden" id="panel-results">
+    <div class="panel-header">
+      <div class="step-badge">4</div>
+      <h2 class="panel-title">AI insights</h2>
+    </div>
+    <div id="exchangeList"></div>
+    <div class="results-toolbar">
+      <span class="exchange-count" id="exchangeCount"></span>
+      <button class="btn btn-ghost" onclick="clearResults()" style="font-size:12px;padding:6px 14px;">Clear history</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

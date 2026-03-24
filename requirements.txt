@@ -11,3 +11,10 @@ google-generativeai # Google's official Python SDK for the Gemini AI API
 python-dotenv      # Reads your .env file and loads variables into os.environ
 gunicorn           # Production-grade WSGI server — what Render uses to run Flask
                    # Flask's built-in server (app.run) is for development only
+
+flask
+pandas
+matplotlib
+google-genai
+python-dotenv
+gunicorn
