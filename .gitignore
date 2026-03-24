@@ -1,0 +1,29 @@
+# .gitignore  —  Files Git should NEVER track or upload to GitHub
+# ----------------------------------------------------------------
+# Each line is a pattern. Git ignores any file/folder matching it.
+
+# SECRET — your API keys and passwords live here
+.env
+
+# Uploaded CSVs — may contain private user data
+uploads/
+
+# Python bytecode — auto-generated, not needed in version control
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folder — large, recreatable from requirements.txt
+venv/
+env/
+.venv/
+
+# macOS system files
+.DS_Store
+
+# VS Code settings (optional — remove if you want to share editor config)
+.vscode/
+
+# Pytest cache
+.pytest_cache/
