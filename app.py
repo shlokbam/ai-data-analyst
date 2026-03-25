@@ -19,10 +19,83 @@ from chart import generate_chart
 # Our Phase 4 module — all Matplotlib drawing logic lives here.
 # generate_chart(df, chart_type, x_col, y_col) → BytesIO PNG buffer
 
+from models import db, init_db
+# db       = the SQLAlchemy instance (needed to query the database)
+# init_db  = our helper that connects db to the app and creates tables
+
+from flask_login import LoginManager, current_user
+# LoginManager orchestrates Flask-Login — it handles:
+#   - Remembering who is logged in (via session cookie)
+#   - Redirecting to /login when an unauthenticated user
+#     tries to access a protected route
+#   - Providing current_user in every route (the logged-in User object,
+#     or an AnonymousUser if not logged in)
+# We import it here and configure it below.
+# current_user is used in routes to get the logged-in user.
+
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# ---- DATABASE CONFIGURATION ---------------------------------
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+    'DATABASE_URL', 'sqlite:///app.db'
+)
+# SQLALCHEMY_DATABASE_URI tells SQLAlchemy where the database is.
+# sqlite:///app.db  = a file called app.db in the project folder.
+# The three slashes mean "relative path" — app.db sits next to app.py.
+# Four slashes (sqlite:////absolute/path) = absolute path.
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# TRACK_MODIFICATIONS = False turns off a Flask-SQLAlchemy feature
+# that watches every object for changes and fires signals.
+# It's deprecated, slows things down, and we don't use it.
+# Always set this to False.
+
+# ---- FLASK-LOGIN CONFIGURATION ------------------------------
+login_manager = LoginManager()
+login_manager.init_app(app)
+# init_app(app) registers Flask-Login with the Flask app.
+# Same pattern as db.init_app(app) — avoids circular imports.
+
+login_manager.login_view = 'auth.login'
+# login_view tells Flask-Login WHERE to redirect unauthenticated users.
+# 'auth.login' means: Blueprint named 'auth', function named 'login'.
+# We'll create this Blueprint in Phase B (auth.py).
+# For now, the app will work fine — login_view is only triggered
+# when @login_required is used, which we add in Phase C.
+
+@login_manager.user_loader
+def load_user(user_id):
+    """
+    Flask-Login calls this function on EVERY request to reload
+    the logged-in user from the database.
+
+    How it works:
+      1. Browser sends request with session cookie
+      2. Flask-Login reads user_id from the cookie
+      3. Calls load_user(user_id) to get the User object
+      4. Sets current_user = that User object for this request
+
+    Why do we need this?
+    HTTP is stateless — the server forgets who you are between requests.
+    The session cookie stores your user_id, and this function
+    re-fetches your full User object from the DB on every request.
+
+    Parameters:
+        user_id (str): Flask-Login always passes it as a string,
+                       even though it's stored as an int. We convert it.
+    Returns:
+        User object, or None if not found (logs out the user).
+    """
+    from models import User
+    # Import here (not at top) to avoid circular imports.
+    # This function is only called at request time, never at import time.
+    return User.query.get(int(user_id))
+    # User.query.get(id) = SELECT * FROM users WHERE id = ? LIMIT 1
+    # Returns the User object, or None if the id doesn't exist.
+    # If None: Flask-Login treats the session as invalid and logs out.
 
 UPLOAD_FOLDER      = os.getenv('UPLOAD_FOLDER', 'uploads')
 ALLOWED_EXTENSIONS = {'csv'}
@@ -58,10 +131,7 @@ def upload_file():
     session['filename'] = filename
     session.pop('history', None)  # clear old conversation on new upload
 
-    try:
-        df = pd.read_csv(filepath)
-    except:
-        df = pd.read_csv(filepath, encoding='latin1')
+    df = pd.read_csv(filepath)
     rows, cols = df.shape
     columns_info = [{'name': col, 'type': str(df[col].dtype)} for col in df.columns]
 
@@ -76,11 +146,7 @@ def preview():
     filepath = session.get('filepath')
     if not filepath:
         return jsonify({'error': 'No file uploaded yet.'}), 400
-    try:
-        df = pd.read_csv(filepath)
-    except:
-        df = pd.read_csv(filepath, encoding='latin1')
-    df = df.where(pd.notnull(df), None)
+    df   = pd.read_csv(filepath)
     data = df.head(10).to_dict(orient='records')
     return jsonify({'columns': list(df.columns), 'rows': data, 'total_rows': len(df)})
 
@@ -249,10 +315,7 @@ def chart():
         return jsonify({'error': 'Uploaded file not found. Please re-upload.'}), 400
 
     # -- Load the data and generate the chart --------------------
-    try:
-        df = pd.read_csv(filepath)
-    except:
-        df = pd.read_csv(filepath, encoding='latin1')
+    df = pd.read_csv(filepath)
 
     buf = generate_chart(df, chart_type, x_col=x_col, y_col=y_col)
     # generate_chart() returns a BytesIO buffer containing PNG bytes,
@@ -294,4 +357,11 @@ def health():
 # ============================================================
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+    # Initialise the database — creates tables if they don't exist.
+    # Safe to call every time: CREATE TABLE IF NOT EXISTS.
+    # On first run: creates app.db with users, chats, messages tables.
+    # On subsequent runs: does nothing (tables already exist).
+    init_db(app)
+
     app.run(debug=True, port=5000)

@@ -1,6 +1,9 @@
 flask
+flask-sqlalchemy
+flask-login
 pandas
 matplotlib
 groq
 python-dotenv
+werkzeug
 gunicorn
