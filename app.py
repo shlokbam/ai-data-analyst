@@ -21,9 +21,12 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # ---- DATABASE CONFIGURATION ---------------------------------
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    'DATABASE_URL', 'sqlite:///app.db'
-)
+# Render's PostgreSQL sets DATABASE_URL as postgres:// but
+# SQLAlchemy 1.4+ requires postgresql:// — fix it silently.
+_db_url = os.getenv('DATABASE_URL', 'sqlite:///app.db')
+if _db_url.startswith('postgres://'):
+    _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ---- FLASK-LOGIN CONFIGURATION ------------------------------

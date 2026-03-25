@@ -1,0 +1,30 @@
+# render.yaml — Render Blueprint
+# Defines your web service and PostgreSQL database in one file.
+# Connect this repo in Render → it will auto-create everything below.
+
+services:
+  - type: web
+    name: datalens
+    runtime: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn app:app --workers=2 --threads=2 --timeout=120"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true       # Render auto-generates a secure random value
+      - key: GROQ_API_KEY
+        sync: false               # You enter this manually in the Render dashboard
+      - key: DATABASE_URL
+        fromDatabase:
+          name: datalens-db
+          property: connectionString
+      - key: UPLOAD_FOLDER
+        value: uploads
+    healthCheckPath: /health
+
+databases:
+  - name: datalens-db
+    databaseName: datalens
+    user: datalens_user
+    plan: free                    # Free tier — 90 day limit, then $7/mo
