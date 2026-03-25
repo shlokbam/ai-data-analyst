@@ -443,9 +443,11 @@ def export_pdf(chat_id):
 
 
 # ============================================================
-#  Entry point
+#  App initialization — runs whether started via gunicorn or
+#  directly with `python app.py`. MUST be at module level.
 # ============================================================
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+init_db(app)   # links db to app + creates tables
+
 if __name__ == '__main__':
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    init_db(app)
     app.run(debug=True, port=5000)
