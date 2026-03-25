@@ -28,30 +28,204 @@
       --mono:        'DM Mono', 'Courier New', monospace;
       --serif:       'DM Serif Display', Georgia, serif;
       --transition:  0.2s ease;
+      --sidebar-w:   260px;
     }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-
     body {
       font-family: var(--mono);
       background: var(--bg);
       color: var(--text-1);
       min-height: 100vh;
-      line-height: 1.65;
+      display: flex;
+    }
+
+    /* ======================================================
+       SIDEBAR
+    ====================================================== */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 20px 18px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .brand-name {
+      font-family: var(--serif);
+      font-size: 1.25rem;
+      font-weight: 400;
+    }
+    .brand-name em { font-style: italic; color: var(--accent); }
+
+    .btn-new-chat {
+      width: 100%;
+      background: var(--accent-glow);
+      border: 1px solid var(--accent-dim);
+      border-radius: var(--radius);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-new-chat:hover { background: rgba(78,205,196,0.25); }
+
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 10px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-2) transparent;
+    }
+    .sidebar-section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      padding: 4px 8px 6px;
+    }
+
+    .chat-item {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-radius: var(--radius);
+      padding: 0;
+      margin-bottom: 2px;
+      cursor: pointer;
+      transition: background var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .chat-item:hover { background: var(--surface-2); }
+    .chat-item.active { background: var(--accent-glow); border: 1px solid var(--accent-dim); }
+
+    .chat-item-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-2);
+      font-family: var(--mono);
+      font-size: 12px;
+      text-align: left;
+      padding: 9px 10px;
+      cursor: pointer;
+      min-width: 0;
+    }
+    .chat-item.active .chat-item-btn { color: var(--accent); }
+
+    .chat-item-name {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chat-item-meta {
+      font-size: 10px;
+      color: var(--text-3);
+      display: block;
+      margin-top: 2px;
+    }
+    .chat-item.active .chat-item-meta { color: var(--accent-dim); }
+
+    .chat-del-btn {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      padding: 9px 8px;
+      font-size: 13px;
+      line-height: 1;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity var(--transition), color var(--transition);
+    }
+    .chat-item:hover .chat-del-btn { opacity: 1; }
+    .chat-del-btn:hover { color: var(--danger); }
+
+    .sidebar-empty {
+      text-align: center;
+      padding: 24px 12px;
+      color: var(--text-3);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .sidebar-footer {
+      border-top: 1px solid var(--border);
+      padding: 12px 14px;
+      flex-shrink: 0;
+    }
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      border: 1px solid var(--accent-dim);
+      color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .user-email {
+      font-size: 11px;
+      color: var(--text-2);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .logout-btn {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 4px;
+      transition: color var(--transition);
+    }
+    .logout-btn:hover { color: var(--danger); }
+
+    /* ======================================================
+       MAIN CONTENT
+    ====================================================== */
+    .main-content {
+      flex: 1;
+      min-width: 0;
       background-image: radial-gradient(circle, #2A2D35 1px, transparent 1px);
       background-size: 28px 28px;
     }
 
     .page-wrapper {
-      max-width: 860px;
+      max-width: 800px;
       margin: 0 auto;
-      padding: 0 24px 80px;
+      padding: 0 28px 80px;
     }
 
     /* ---- HERO ---- */
     .hero {
-      padding: 56px 0 40px;
+      padding: 52px 0 36px;
       text-align: center;
       animation: fadeUp 0.6s ease both;
     }
@@ -269,6 +443,15 @@
       flex-wrap: wrap; gap: 10px;
     }
     .exchange-count { font-size: 11.5px; color: var(--text-3); }
+    .toolbar-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ---- RESTORED BADGE ---- */
+    .restored-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--text-3); padding: 5px 10px;
+      border: 1px solid var(--border); border-radius: 20px;
+      background: var(--surface-2); margin-bottom: 16px;
+    }
 
     /* ---- ANIMATIONS ---- */
     @keyframes fadeUp {
@@ -278,7 +461,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ---- RESPONSIVE ---- */
-    @media (max-width: 600px) {
+    @media (max-width: 700px) {
+      .sidebar { display: none; }
       .panel { padding: 20px 18px; }
       .hero { padding: 36px 0 28px; }
       .hero h1 { font-size: 1.8rem; }
@@ -286,8 +470,41 @@
     }
   </style>
 </head>
-
 <body>
+
+<!-- ======================================================
+     SIDEBAR
+====================================================== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="brand">
+      <span style="font-size:20px;">🔬</span>
+      <span class="brand-name">Data<em>Lens</em></span>
+    </div>
+    <button class="btn-new-chat" id="btnNewChat" onclick="newChat()">
+      <span>＋</span> New analysis
+    </button>
+  </div>
+
+  <div class="sidebar-body" id="chatList">
+    <div class="sidebar-empty" id="chatListEmpty">
+      No analyses yet.<br/>Upload a CSV to begin.
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span class="user-email" id="userEmail">{{ current_user.email }}</span>
+      <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Log out">⏻</a>
+    </div>
+  </div>
+</aside>
+
+<!-- ======================================================
+     MAIN CONTENT
+====================================================== -->
+<main class="main-content">
 <div class="page-wrapper">
 
   <header class="hero">
@@ -324,7 +541,7 @@
     <div class="panel-header">
       <div class="step-badge">2</div>
       <h2 class="panel-title">Data preview</h2>
-      <button class="btn btn-ghost" onclick="resetApp()" style="margin-left:auto;font-size:12px;padding:6px 14px;">↺ New file</button>
+      <button class="btn btn-ghost" onclick="newChat()" style="margin-left:auto;font-size:12px;padding:6px 14px;">↺ New file</button>
     </div>
     <div class="preview-table-wrap">
       <table>
@@ -364,11 +581,15 @@
     <div id="exchangeList"></div>
     <div class="results-toolbar">
       <span class="exchange-count" id="exchangeCount"></span>
-      <button class="btn btn-ghost" onclick="clearResults()" style="font-size:12px;padding:6px 14px;">Clear history</button>
+      <div class="toolbar-actions">
+        <button class="btn btn-ghost" onclick="exportPDF()" id="btnExport" style="font-size:12px;padding:6px 14px;display:none;">↓ Export PDF</button>
+        <button class="btn btn-ghost" onclick="clearResults()" style="font-size:12px;padding:6px 14px;">Clear history</button>
+      </div>
     </div>
   </section>
 
 </div>
+</main>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

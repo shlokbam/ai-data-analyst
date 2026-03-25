@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up — DataLens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:          #0E0F11;
+      --surface:     #16181C;
+      --surface-2:   #1E2128;
+      --border:      #2A2D35;
+      --border-2:    #383C47;
+      --accent:      #4ECDC4;
+      --accent-dim:  #2A7A75;
+      --accent-glow: rgba(78,205,196,0.15);
+      --text-1:      #F0F2F5;
+      --text-2:      #8B8FA8;
+      --text-3:      #555870;
+      --danger:      #FF6B6B;
+      --success:     #6BCB77;
+      --radius:      10px;
+      --radius-lg:   16px;
+      --mono:        'DM Mono', 'Courier New', monospace;
+      --serif:       'DM Serif Display', Georgia, serif;
+      --transition:  0.2s ease;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      background-image: radial-gradient(circle, #2A2D35 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--text-1);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px 44px;
+      width: 100%;
+      max-width: 420px;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .brand-badge {
+      display: inline-block;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      background: var(--accent-glow);
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+    }
+    .brand h1 {
+      font-family: var(--serif);
+      font-size: 2rem;
+      font-weight: 400;
+      color: var(--text-1);
+    }
+    .brand h1 em { font-style: italic; color: var(--accent); }
+    .brand p { font-size: 12.5px; color: var(--text-3); margin-top: 6px; }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 7px;
+    }
+    .form-group input {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      color: var(--text-1);
+      font-family: var(--mono);
+      font-size: 13.5px;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .form-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .form-group input::placeholder { color: var(--text-3); }
+
+    .hint { font-size: 11px; color: var(--text-3); margin-top: 5px; }
+
+    .btn-submit {
+      width: 100%;
+      background: var(--accent);
+      color: #0E0F11;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 13.5px;
+      font-weight: 500;
+      padding: 12px;
+      cursor: pointer;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+      margin-top: 6px;
+    }
+    .btn-submit:hover {
+      background: #3DBDB5;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .btn-submit:active { transform: none; }
+
+    .auth-link {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12.5px;
+      color: var(--text-3);
+    }
+    .auth-link a { color: var(--accent); text-decoration: none; }
+    .auth-link a:hover { text-decoration: underline; }
+
+    .flash-list { list-style: none; margin-bottom: 18px; }
+    .flash-item {
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 12.5px;
+      margin-bottom: 8px;
+    }
+    .flash-error   { background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.3); color: var(--danger); }
+    .flash-success { background: rgba(107,203,119,0.12); border: 1px solid rgba(107,203,119,0.3); color: var(--success); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-badge">AI-Powered · CSV Analysis</div>
+      <h1>Data<em>Lens</em></h1>
+      <p>Create your free account</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash-list">
+          {% for category, message in messages %}
+            <li class="flash-item flash-{{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('auth.signup') }}">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="new-password" required />
+        <p class="hint">Minimum 6 characters</p>
+      </div>
+      <div class="form-group">
+        <label for="confirm_password">Confirm Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••" autocomplete="new-password" required />
+      </div>
+      <button type="submit" class="btn-submit">Create account →</button>
+    </form>
+
+    <p class="auth-link">
+      Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a>
+    </p>
+  </div>
+</body>
+</html>

@@ -7,3 +7,4 @@ groq
 python-dotenv
 werkzeug
 gunicorn
+reportlab

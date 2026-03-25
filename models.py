@@ -154,17 +154,14 @@ class User(UserMixin, db.Model):
         Hashes the password and stores it.
         Call this instead of setting password_hash directly.
 
-        Usage:
-            user = User(email="a@b.com")
-            user.set_password("mypassword123")
-            db.session.add(user)
-            db.session.commit()
+        We explicitly use 'pbkdf2:sha256' for Python 3.9 compatibility:
+        werkzeug 2.x defaults to 'scrypt', which requires Python 3.9+
+        to have OpenSSL compiled with scrypt support. pbkdf2:sha256
+        is always available and is cryptographically strong.
         """
-        self.password_hash = generate_password_hash(password)
-        # generate_password_hash() uses scrypt by default in werkzeug 2.x+
-        # (older versions used pbkdf2:sha256 — both are strong).
-        # scrypt is a memory-hard function — even harder to brute-force.
-        # Format: "scrypt:32768:8:1$<salt>$<hash>"
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        # pbkdf2:sha256 is NIST-approved, used by many production apps.
+        # Format: "pbkdf2:sha256:600000$<salt>$<hash>"
         # The salt is random — same password → different hash each time.
         # You can NEVER reverse this to get the original password.
 
