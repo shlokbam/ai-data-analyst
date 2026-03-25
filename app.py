@@ -58,7 +58,10 @@ def upload_file():
     session['filename'] = filename
     session.pop('history', None)  # clear old conversation on new upload
 
-    df = pd.read_csv(filepath)
+    try:
+        df = pd.read_csv(filepath)
+    except:
+        df = pd.read_csv(filepath, encoding='latin1')
     rows, cols = df.shape
     columns_info = [{'name': col, 'type': str(df[col].dtype)} for col in df.columns]
 
@@ -73,7 +76,11 @@ def preview():
     filepath = session.get('filepath')
     if not filepath:
         return jsonify({'error': 'No file uploaded yet.'}), 400
-    df   = pd.read_csv(filepath)
+    try:
+        df = pd.read_csv(filepath)
+    except:
+        df = pd.read_csv(filepath, encoding='latin1')
+    df = df.where(pd.notnull(df), None)
     data = df.head(10).to_dict(orient='records')
     return jsonify({'columns': list(df.columns), 'rows': data, 'total_rows': len(df)})
 
@@ -242,7 +249,10 @@ def chart():
         return jsonify({'error': 'Uploaded file not found. Please re-upload.'}), 400
 
     # -- Load the data and generate the chart --------------------
-    df = pd.read_csv(filepath)
+    try:
+        df = pd.read_csv(filepath)
+    except:
+        df = pd.read_csv(filepath, encoding='latin1')
 
     buf = generate_chart(df, chart_type, x_col=x_col, y_col=y_col)
     # generate_chart() returns a BytesIO buffer containing PNG bytes,

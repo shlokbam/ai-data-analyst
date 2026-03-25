@@ -1,20 +1,6 @@
-# requirements.txt
-# -----------------
-# This file lists every Python package your project needs.
-# Running `pip install -r requirements.txt` installs all of them at once.
-# Render reads this file automatically during deployment to set up your server.
-
-flask              # The web framework — handles routes, requests, responses
-pandas             # Data analysis library — reads and manipulates CSV files
-matplotlib         # Chart generation library — creates PNG graphs server-side
-google-generativeai # Google's official Python SDK for the Gemini AI API
-python-dotenv      # Reads your .env file and loads variables into os.environ
-gunicorn           # Production-grade WSGI server — what Render uses to run Flask
-                   # Flask's built-in server (app.run) is for development only
-
 flask
 pandas
 matplotlib
-google-genai
+groq
 python-dotenv
 gunicorn

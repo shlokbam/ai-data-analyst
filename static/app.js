@@ -483,14 +483,37 @@ async function loadChart(containerEl, chartType, chartCols) {
     '<div class="chart-label">Generating chart…</div>' +
     '<div class="spinner-wrap"><div class="spinner"></div><span>Drawing visualisation</span></div>';
 
+  // BUG FIX: chart_cols can have {x: null, y: null} when Groq hit the
+  // fast-path for a single numeric column (e.g. "distribution of MSRP").
+  // In that case, the server's generate_chart() fallback handles it fine,
+  // BUT we need to at least send a valid x_col for histogram questions.
+  // Strategy: if y is null but we know the column from the question context,
+  // pass null — generate_chart()'s own fallback will pick the right column.
+  // The real fix is: don't send null when we have STATE.numericColumns to
+  // fall back on.
+  let x_col = chartCols ? chartCols.x : null;
+  let y_col = chartCols ? chartCols.y : null;
+
+  // If both cols are null (fast-path returned {x:null,y:null}),
+  // use the first available numeric column for y so the server
+  // doesn't have to guess with zero hints.
+  if (!y_col && STATE.numericColumns.length > 0) {
+    y_col = STATE.numericColumns[0];
+    // For histograms x and y are the same column — that's fine,
+    // generate_chart() uses x_col for histogram regardless of y.
+  }
+  if (!x_col && STATE.numericColumns.length > 0) {
+    x_col = y_col || STATE.numericColumns[0];
+  }
+
   try {
     const response = await fetch('/chart', {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify({
         chart_type: chartType,
-        x_col     : chartCols ? chartCols.x : null,
-        y_col     : chartCols ? chartCols.y : null,
+        x_col     : x_col,
+        y_col     : y_col,
       })
     });
 
@@ -605,15 +628,24 @@ function renderInsight(text) {
     followUpHtml = `
       <div class="follow-ups">
         <div class="follow-ups-label">You might also ask</div>
-        ${followUps.map(q => `
-          <span class="follow-up-chip" onclick="prefillQuestion(this.textContent)">
-            ${q}
-          </span>`
-        ).join('')}
+        ${followUps.map(q => {
+          // BUG FIX: strip **bold markers** from chip text.
+          // The AI wraps column names in **double asterisks** inside
+          // follow-up questions, e.g. "What is the **MSRP** distribution?"
+          // We must strip them BEFORE inserting into the chip so the user
+          // sees clean text, not raw markdown syntax.
+          // We also store the clean text in a data attribute so
+          // prefillQuestion() reads the clean version, not innerHTML
+          // (which would include any leftover HTML entities).
+          const cleanQ = q.replace(/\*\*(.+?)\*\*/g, '$1');
+          // Same regex as the main text renderer — strips ** but keeps the word inside.
+          return `<span class="follow-up-chip" data-question="${escapeHtml(cleanQ)}" onclick="prefillQuestion(this.dataset.question)">${escapeHtml(cleanQ)}</span>`;
+          // We now use data-question attribute + escapeHtml() for both display
+          // and the value passed to prefillQuestion().
+          // this.textContent would still work but could pick up whitespace
+          // from template literal indentation — data attribute is cleaner.
+        }).join('')}
       </div>`;
-    // Template literal + .map().join('') is how we build HTML strings
-    // from arrays in vanilla JS without a framework.
-    // .map() transforms each item, .join('') concatenates with no separator.
   }
 
   return html + followUpHtml;

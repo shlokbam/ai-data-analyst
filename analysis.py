@@ -44,7 +44,10 @@ def analyze_csv(filepath):
     # ----------------------------------------------------------
     #  STEP 1 — Load the CSV into a DataFrame
     # ----------------------------------------------------------
-    df = pd.read_csv(filepath)
+    try:
+        df = pd.read_csv(filepath)
+    except:
+        df = pd.read_csv(filepath, encoding='latin1')
     # pd.read_csv() does a lot of heavy lifting:
     #   - Opens and reads the file
     #   - Detects the header row (first row becomes column names)

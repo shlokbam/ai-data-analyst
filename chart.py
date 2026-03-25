@@ -401,12 +401,28 @@ def _draw_scatter(ax, df, x_col, y_col):
 def _draw_histogram(ax, df, x_col):
     """
     Draws a histogram.
-    Best for: distribution of a single numeric variable
+    Best for: distribution of a single numeric variable.
     Example: "How are prices distributed?", "Age distribution"
 
-    A histogram groups values into bins (ranges) and counts
-    how many values fall into each bin.
+    A histogram groups values into ranges (bins) and counts
+    how many values fall into each bin. Only works on numbers —
+    we guard against text columns being passed in.
     """
+    # Safety guard: if x_col is not numeric, find the first numeric
+    # column in the DataFrame. generate_chart() should have already
+    # fixed this, but we add a second check here to be bulletproof.
+    if not pd.api.types.is_numeric_dtype(df[x_col]):
+        numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        if not numeric_cols:
+            # No numeric columns at all — nothing to plot
+            ax.text(0.5, 0.5, 'No numeric data to plot',
+                    ha='center', va='center', transform=ax.transAxes,
+                    fontsize=12, color=STYLE['text'])
+            ax.set_axis_off()
+            return
+        x_col = numeric_cols[0]
+        # Switch to the first real numeric column and continue drawing.
+
     data = df[x_col].dropna()
     # dropna() removes NaN values — can't bin empty values
 
@@ -539,21 +555,54 @@ def generate_chart(df, chart_type, x_col=None, y_col=None):
     # Can't draw any chart without at least one numeric column.
 
     # ---- Smart column fallback --------------------------------
-    # If Gemini's suggested columns don't exist, pick sensible defaults.
+    # The AI can suggest columns that don't exist, have the wrong type,
+    # or are completely mismatched for the chart type requested.
+    # We fix all of that here before any drawing function is called.
+
+    # Step 1 — make sure x_col actually exists in the DataFrame
     if x_col not in all_cols:
-        # Use first text column, or first numeric if no text columns
         x_col = text_cols[0] if text_cols else numeric_cols[0]
 
+    # Step 2 — make sure y_col is numeric (it's always the measured value)
     if y_col not in numeric_cols:
-        # y must always be numeric (it's the measured value)
-        # Pick whichever numeric column isn't being used as x
+        # Pick the first numeric column that isn't also used as x,
+        # or fall back to numeric_cols[0] if there's only one.
         y_col = next(
             (c for c in numeric_cols if c != x_col),
             numeric_cols[0]
         )
-        # next() returns the first item from the generator expression
-        # that satisfies the condition.
-        # If ALL numeric cols are the same as x_col, fall back to numeric_cols[0].
+
+    # Step 3 — chart-type-specific column type enforcement.
+    #
+    # This is the fix for the crash:
+    #   "Could not convert string 'Motorcycles...' to numeric"
+    #
+    # The AI suggested chart_type='histogram' with x_col='PRODUCTLINE'
+    # (a text column). Histograms REQUIRE a numeric column — they bin
+    # numbers into ranges, which is meaningless for category strings.
+    #
+    # When the AI picks the wrong type for a chart, we override it:
+    #   - histogram → x_col must be numeric; if it's text, use y_col instead
+    #   - scatter   → both axes must be numeric; remap text → numeric
+    #   - bar/pie   → x should ideally be text (categories), but numeric is
+    #                 fine too, so we leave those alone
+
+    if chart_type == 'histogram':
+        if x_col not in numeric_cols:
+            # AI gave us a text column for a histogram — swap to y_col
+            # which we already guaranteed is numeric in Step 2.
+            x_col = y_col
+            # Now x_col and y_col are the same numeric column.
+            # _draw_histogram() only uses x_col, so this is correct.
+
+    elif chart_type == 'scatter':
+        # Scatter plots need TWO numeric columns.
+        # If x is text, replace it with the first numeric that isn't y.
+        if x_col not in numeric_cols:
+            x_col = next(
+                (c for c in numeric_cols if c != y_col),
+                y_col   # fall back to y if only one numeric column exists
+            )
 
     # ---- Create the figure ------------------------------------
     fig, ax = plt.subplots(figsize=(10, 5.5))
