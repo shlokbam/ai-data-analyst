@@ -27,3 +27,20 @@ env/
 
 # Pytest cache
 .pytest_cache/
+
+# Additional Python/Flask patterns
+*.log
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.tox/
+.mypy_cache/
+.dmypy.json
+.flaskenv
+instance/
+.coverage.*
+.cache/
+*.sqlite
+*.db
